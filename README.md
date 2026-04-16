@@ -1,0 +1,2 @@
+# ensptomcpfortrae
+ensp通过mcp接口连接到trae实现ai对ensp设备的全自动化规划和配置
