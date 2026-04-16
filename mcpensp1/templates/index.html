@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>eNSP MCP</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; height: 100vh; display: flex; flex-direction: column; }
+    .header { padding: 12px 16px; background: #181825; border-bottom: 1px solid #313244; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 14px; }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .scan-btn { background: #89b4fa; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; color: #1e1e2e; font-size: 12px; }
+    .scan-btn:hover { background: #b4befe; }
+    .upload-btn { background: #a6e3a1; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; color: #1e1e2e; font-size: 12px; }
+    .upload-btn:hover { background: #94e2d5; }
+    .topology-indicator { font-size: 11px; color: #a6e3a1; }
+    #topologyInput { display: none; }
+    .content { flex: 1; display: flex; overflow: hidden; }
+    .sidebar { width: 220px; background: #181825; border-right: 1px solid #313244; display: flex; flex-direction: column; }
+    .port-range { padding: 12px 16px; border-bottom: 1px solid #313244; display: flex; gap: 8px; align-items: center; }
+    .port-range input { width: 55px; background: #11111b; border: 1px solid #313244; padding: 6px; border-radius: 4px; color: #cdd6f4; font-size: 12px; }
+    .device-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .device-item { padding: 10px; margin-bottom: 4px; background: #11111b; border-radius: 6px; display: flex; flex-direction: column; gap: 6px; }
+    .device-item:hover { background: #181825; }
+    .device-item.active { border: 1px solid #89b4fa; }
+    .device-item.connected { border-left: 3px solid #a6e3a1; }
+    .device-header { display: flex; justify-content: space-between; align-items: center; }
+    .device-info { flex: 1; }
+    .device-name { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+    .device-name .edit-icon { opacity: 0; cursor: pointer; font-size: 10px; }
+    .device-name:hover .edit-icon { opacity: 1; }
+    .device-port { font-size: 10px; color: #6c7086; margin-top: 2px; }
+    .device-actions { display: flex; gap: 4px; align-items: center; }
+    .device-actions-row { display: flex; gap: 4px; justify-content: flex-end; }
+    .connect-btn { background: #a6e3a1; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; color: #1e1e2e; font-size: 11px; flex: 1; }
+    .connect-btn:hover { background: #94e2d5; }
+    .connected-badge { background: #313244; color: #a6e3a1; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; flex: 1; text-align: center; }
+    .rename-btn { background: #313244; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; color: #6c7086; font-size: 10px; }
+    .rename-btn:hover { background: #45475a; color: #cdd6f4; }
+    .disconnect-btn { background: #f38ba8; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; color: #1e1e2e; font-size: 11px; }
+    .disconnect-btn:hover { background: #eba0ac; }
+    .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .tabs { background: #181825; border-bottom: 1px solid #313244; display: flex; padding: 0 8px; overflow-x: auto; min-height: 40px; }
+    .tab { padding: 10px 16px; font-size: 12px; color: #6c7086; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .tab:hover { color: #cdd6f4; }
+    .tab.active { color: #cdd6f4; border-bottom-color: #89b4fa; }
+    .tab .close { width: 16px; height: 16px; border-radius: 50%; background: #313244; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+    .tab .close:hover { background: #f38ba8; color: #1e1e2e; }
+    .empty-tabs { padding: 10px 16px; font-size: 12px; color: #6c7086; }
+    .terminals { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .terminal-panel { background: #11111b; border-radius: 8px; display: none; flex-direction: column; height: 300px; overflow: hidden; }
+    .terminal-panel.active { display: flex; }
+    .terminal-header { padding: 8px 12px; background: #181825; border-bottom: 1px solid #313244; font-size: 12px; color: #89b4fa; display: flex; justify-content: space-between; align-items: center; }
+    .terminal-header .rename-icon { opacity: 0; cursor: pointer; font-size: 10px; }
+    .terminal-header:hover .rename-icon { opacity: 1; }
+    .terminal-body { flex: 1; padding: 12px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.5; }
+    .terminal-body .output { color: #a6e3a1; white-space: pre-wrap; word-break: break-all; }
+    .terminal-body .input { color: #89b4fa; white-space: pre-wrap; }
+    .terminal-body .error { color: #f38ba8; }
+    .terminal-input { padding: 8px 12px; background: #181825; border-top: 1px solid #313244; display: flex; align-items: center; gap: 8px; }
+    .terminal-input .prompt { color: #89b4fa; font-size: 12px; }
+    .terminal-input input { flex: 1; background: #11111b; border: 1px solid #313244; padding: 6px 10px; border-radius: 4px; color: #cdd6f4; font-family: monospace; font-size: 12px; outline: none; }
+    .terminal-input input:focus { border-color: #89b4fa; }
+    .logs { background: #181825; border-top: 1px solid #313244; max-height: 100px; overflow-y: auto; padding: 8px; font-size: 11px; }
+    .log-item { padding: 2px 0; }
+    .log-item.success { color: #a6e3a1; }
+    .log-item.error { color: #f38ba8; }
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: #181825; padding: 20px; border-radius: 8px; min-width: 300px; }
+    .modal-title { font-size: 14px; margin-bottom: 12px; }
+    .modal-input { width: 100%; background: #11111b; border: 1px solid #313244; padding: 8px; border-radius: 4px; color: #cdd6f4; font-size: 12px; margin-bottom: 12px; }
+    .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-btn { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; border: none; }
+    .modal-btn.cancel { background: #313244; color: #cdd6f4; }
+    .modal-btn.confirm { background: #89b4fa; color: #1e1e2e; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <h1>eNSP MCP</h1>
+      <button class="scan-btn" onclick="scanDevices()">扫描</button>
+      <button class="upload-btn" onclick="document.getElementById('topologyInput').click()">上传拓扑</button>
+      <input type="file" id="topologyInput" style="display:none" accept=".json,.txt" onchange="uploadTopology(this.files[0])">
+      <span id="topologyIndicator" class="topology-indicator"></span>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="sidebar">
+      <div class="port-range">
+        <input type="number" id="startPort" value="2000" min="1" max="65535">
+        <span>-</span>
+        <input type="number" id="endPort" value="2050" min="1" max="65535">
+      </div>
+      <div class="device-list" id="deviceList">
+        <div style="padding: 20px; text-align: center; color: #6c7086; font-size: 12px;">点击扫描搜索设备</div>
+      </div>
+    </div>
+
+    <div class="main-area">
+      <div class="tabs" id="tabs">
+        <div class="empty-tabs">等待设备连接...</div>
+      </div>
+      <div class="terminals" id="terminals"></div>
+      <div class="logs" id="logs"></div>
+    </div>
+  </div>
+
+  <div id="renameModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-title">重命名设备</div>
+      <input type="text" id="renameInput" class="modal-input" placeholder="输入设备名称">
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" onclick="closeRenameModal()">取消</button>
+        <button class="modal-btn confirm" onclick="confirmRename()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let deviceConnections = {};
+    let deviceNames = {};
+    let terminalData = {};
+    let currentDevice = null;
+    let scannedDevices = [];
+    let renameTarget = null;
+    let topologyLoaded = false;
+
+    socket.on('connect', () => {
+      log('已连接');
+      socket.emit('get_connected_devices');
+    });
+
+    socket.on('scan_result', (devices) => {
+      scannedDevices = devices;
+      devices.forEach(d => {
+        if (d.name && d.name !== d.path) {
+          deviceNames[d.path] = d.name;
+        }
+      });
+      updateDeviceListUI();
+    });
+
+    socket.on('connected_devices_list', (devices) => {
+      devices.forEach(d => {
+        deviceConnections[d.path] = true;
+        if (d.name && d.name !== d.path) {
+          deviceNames[d.path] = d.name;
+        }
+        if (!terminalData[d.path]) {
+          addTerminal(d.path, d.name);
+        }
+      });
+      if (devices.length > 0) {
+        updateDeviceListUI();
+        log(`恢复 ${devices.length} 个已连接设备`, 'success');
+      }
+    });
+
+    socket.on('device_connected', (data) => {
+      deviceConnections[data.path] = true;
+      if (data.name && data.name !== data.path) {
+        deviceNames[data.path] = data.name;
+      }
+      log(`已连接 ${data.name || data.path}`, 'success');
+      addTerminal(data.path, data.name);
+      switchTerminal(data.path);
+      updateDeviceListUI();
+    });
+
+    socket.on('device_output', (data) => {
+      if (!terminalData[data.path]) terminalData[data.path] = [];
+      terminalData[data.path].push({ type: 'output', text: data.output });
+      if (currentDevice === data.path) renderTerminal(data.path);
+    });
+
+    socket.on('device_error', (data) => {
+      log(`错误: ${data.error}`, 'error');
+    });
+
+    socket.on('device_disconnected', (data) => {
+      delete deviceConnections[data.path];
+      log(`已断开 ${deviceNames[data.path] || data.path}`);
+      removeTerminal(data.path);
+      updateDeviceListUI();
+    });
+
+    socket.on('device_renamed', (data) => {
+      deviceNames[data.path] = data.name;
+      updateDeviceListUI();
+      updateTerminalHeader(data.path, data.name);
+      log(`设备已重命名为: ${data.name}`);
+    });
+
+    socket.on('topology_updated', (data) => {
+      if (data && data.filename) {
+        topologyLoaded = true;
+        document.getElementById('topologyIndicator').textContent = `拓扑: ${data.filename}`;
+        log(`拓扑已加载: ${data.filename}`, 'success');
+      }
+    });
+
+    function uploadTopology(file) {
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      fetch('/api/topology/file', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            log(`拓扑上传成功: ${file.name}`, 'success');
+          } else {
+            log(`拓扑上传失败: ${data.error}`, 'error');
+          }
+        })
+        .catch(err => log(`上传错误: ${err}`, 'error'));
+    }
+
+    function updateDeviceListUI() {
+      const list = document.getElementById('deviceList');
+      if (scannedDevices.length === 0) {
+        list.innerHTML = '<div style="padding: 20px; text-align: center; color: #6c7086; font-size: 12px;">点击扫描搜索设备</div>';
+        return;
+      }
+      list.innerHTML = scannedDevices.map(d => {
+        const name = deviceNames[d.path] || d.name || d.path;
+        const isConnected = deviceConnections[d.path];
+        return `
+        <div class="device-item ${isConnected ? 'connected' : ''}">
+          <div class="device-header">
+            <div class="device-info">
+              <div class="device-name">
+                ${escapeHtml(name)}
+                <span class="edit-icon" onclick="openRenameModal('${d.path}', '${name}')">[✎]</span>
+              </div>
+              <div class="device-port">端口 ${d.port}</div>
+            </div>
+          </div>
+          <div class="device-actions-row">
+            ${isConnected ?
+              `<span class="connected-badge" onclick="selectDevice('${d.path}')">已连接</span>
+               <button class="rename-btn" onclick="openRenameModal('${d.path}', '${name}')">重命名</button>` :
+              `<button class="connect-btn" onclick="connectDevice(${d.port}, '${d.path}')">连接</button>`
+            }
+          </div>
+          ${isConnected ?
+            `<button class="disconnect-btn" onclick="disconnectDeviceFromList('${d.path}')" style="width: 100%; margin-top: 4px;">断开连接</button>` : ''
+          }
+        </div>
+      `;
+      }).join('');
+    }
+
+    function scanDevices() {
+      const start = parseInt(document.getElementById('startPort').value) || 2000;
+      const end = parseInt(document.getElementById('endPort').value) || 2050;
+      log(`扫描 ${start}-${end}...`);
+      socket.emit('scan', { start, end });
+    }
+
+    function connectDevice(port, path) {
+      if (deviceConnections[path]) return;
+      log(`正在连接 ${deviceNames[path] || path}...`);
+      socket.emit('connect_device', { port });
+    }
+
+    function selectDevice(path) {
+      if (!deviceConnections[path]) return;
+      switchTerminal(path);
+    }
+
+    function disconnectDeviceFromList(path) {
+      log(`正在断开 ${deviceNames[path] || path}...`);
+      socket.emit('disconnect_device', { path });
+    }
+
+    function openRenameModal(path, currentName) {
+      renameTarget = path;
+      document.getElementById('renameInput').value = currentName;
+      document.getElementById('renameModal').style.display = 'flex';
+      document.getElementById('renameInput').focus();
+    }
+
+    function closeRenameModal() {
+      renameTarget = null;
+      document.getElementById('renameModal').style.display = 'none';
+    }
+
+    function confirmRename() {
+      if (!renameTarget) return;
+      const newName = document.getElementById('renameInput').value.trim();
+      if (newName) {
+        socket.emit('rename_device', { path: renameTarget, name: newName });
+      }
+      closeRenameModal();
+    }
+
+    function addTerminal(path, name) {
+      const terminals = document.getElementById('terminals');
+      const tabs = document.getElementById('tabs');
+      const displayName = name || deviceNames[path] || path;
+
+      if (document.getElementById('term-' + path.replace(/\./g, '-'))) return;
+
+      const emptyTabs = tabs.querySelector('.empty-tabs');
+      if (emptyTabs) emptyTabs.remove();
+
+      const tab = document.createElement('div');
+      tab.className = 'tab active';
+      tab.id = 'tab-' + path.replace(/\./g, '-');
+      tab.onclick = () => switchTerminal(path);
+      tab.innerHTML = `
+        <span>${escapeHtml(displayName)}</span>
+        <span class="close" onclick="event.stopPropagation(); disconnectDevice('${path}')">×</span>
+      `;
+      tabs.appendChild(tab);
+
+      const panel = document.createElement('div');
+      panel.className = 'terminal-panel active';
+      panel.id = 'term-' + path.replace(/\./g, '-');
+      panel.innerHTML = `
+        <div class="terminal-header">
+          <span>${escapeHtml(displayName)}</span>
+          <span class="rename-icon" onclick="openRenameModal('${path}', '${displayName}')">[✎]</span>
+        </div>
+        <div class="terminal-body" id="body-${path.replace(/\./g, '-')}"></div>
+        <div class="terminal-input">
+          <span class="prompt">$</span>
+          <input type="text" id="input-${path.replace(/\./g, '-')}" placeholder="输入命令按 Enter" onkeydown="sendCommand(event, '${path}')">
+        </div>
+      `;
+      terminals.appendChild(panel);
+      terminalData[path] = [];
+
+      document.querySelectorAll('.terminal-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      panel.classList.add('active');
+      tab.classList.add('active');
+
+      const input = document.getElementById('input-' + path.replace(/\./g, '-'));
+      if (input) input.focus();
+    }
+
+    function updateTerminalHeader(path, name) {
+      const panel = document.getElementById('term-' + path.replace(/\./g, '-'));
+      if (!panel) return;
+      const header = panel.querySelector('.terminal-header');
+      header.innerHTML = `
+        <span>${escapeHtml(name)}</span>
+        <span class="rename-icon" onclick="openRenameModal('${path}', '${name}')">[✎]</span>
+      `;
+
+      const tab = document.getElementById('tab-' + path.replace(/\./g, '-'));
+      if (tab) {
+        tab.querySelector('span:first-child').textContent = name;
+      }
+    }
+
+    function removeTerminal(path) {
+      const panel = document.getElementById('term-' + path.replace(/\./g, '-'));
+      if (panel) panel.remove();
+
+      const tab = document.getElementById('tab-' + path.replace(/\./g, '-'));
+      if (tab) tab.remove();
+
+      delete terminalData[path];
+
+      const tabs = document.getElementById('tabs');
+      if (tabs.children.length === 0) {
+        tabs.innerHTML = '<div class="empty-tabs">等待设备连接...</div>';
+      }
+
+      if (currentDevice === path) {
+        currentDevice = null;
+        const firstTab = tabs.querySelector('.tab');
+        if (firstTab) {
+          const firstPanel = document.querySelector('.terminal-panel');
+          if (firstPanel) {
+            firstPanel.classList.add('active');
+            firstTab.classList.add('active');
+            currentDevice = firstTab.id.replace('tab-', '').replace(/-/g, '.');
+          }
+        }
+      }
+    }
+
+    function switchTerminal(path) {
+      currentDevice = path;
+      document.querySelectorAll('.terminal-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+      const panel = document.getElementById('term-' + path.replace(/\./g, '-'));
+      const tab = document.getElementById('tab-' + path.replace(/\./g, '-'));
+      if (panel) panel.classList.add('active');
+      if (tab) tab.classList.add('active');
+
+      renderTerminal(path);
+
+      const input = document.getElementById('input-' + path.replace(/\./g, '-'));
+      if (input) input.focus();
+    }
+
+    function renderTerminal(path) {
+      const body = document.getElementById('body-' + path.replace(/\./g, '-'));
+      if (!body || !terminalData[path]) return;
+      body.innerHTML = terminalData[path].map(item => `<div class="${item.type}">${escapeHtml(item.text)}</div>`).join('');
+      body.scrollTop = body.scrollHeight;
+    }
+
+    function sendCommand(e, path) {
+      if (e.key === 'Enter') {
+        const input = document.getElementById('input-' + path.replace(/\./g, '-'));
+        const cmd = input.value.trim();
+        if (cmd) {
+          if (!terminalData[path]) terminalData[path] = [];
+          terminalData[path].push({ type: 'input', text: '$ ' + cmd });
+          renderTerminal(path);
+          socket.emit('send_command', { path, command: cmd });
+          input.value = '';
+        }
+      }
+    }
+
+    function disconnectDevice(path) {
+      socket.emit('disconnect_device', { path });
+    }
+
+    function log(msg, type = '') {
+      const logs = document.getElementById('logs');
+      const time = new Date().toLocaleTimeString();
+      logs.innerHTML += `<div class="log-item ${type}">[${time}] ${msg}</div>`;
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.getElementById('renameInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') confirmRename();
+      if (e.key === 'Escape') closeRenameModal();
+    });
+  </script>
+</body>
+</html>

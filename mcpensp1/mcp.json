@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ensp": {
+      "command": "python",
+      "args": [
+        "E:\\Trae CN\\code\\code\\mcpensp1\\test1\\mcp_server.py"
+      ],
+      "env": {},
+      "description": "eNSP Device MCP Server - Requires main server (app.py) running on port 5000. All data synced with Web UI."
+    }
+  }
+}
