@@ -46,7 +46,7 @@ def scan_ports(start=2000, end=2050):
     for port in range(start, end + 1):
         try:
             s = socket.socket()
-            s.settimeout(0.05)
+            s.settimeout(0.5)
             if s.connect_ex(('127.0.0.1', port)) == 0:
                 found.append({'port': port, 'path': f'127.0.0.1:{port}'})
             s.close()
